@@ -116,7 +116,87 @@
 
  
 
-    function renderPage(pdf, pageNum) { 
+    pdfjsLib.getDocument(url).promise.then(pdf => { 
+
+      console.log(`PDF caricato: ${pdf.numPages} pagine`); 
+
+ 
+
+      // Precarica tutte le destinazioni 
+
+      pdf.getDestinations().then(destinations => { 
+
+ 
+
+        // Render tutte le pagine 
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { 
+
+          renderPage(pdf, pageNum, destinations); 
+
+        } 
+
+ 
+
+        // Supporta #page=N 
+
+        window.addEventListener('hashchange', () => { 
+
+          const match = location.hash.match(/#page=(\d+)/); 
+
+          if (match) { 
+
+            const targetPage = parseInt(match[1], 10); 
+
+            if (targetPage >= 1 && targetPage <= pdf.numPages) { 
+
+              const targetWrapper = container.children[targetPage - 1]; 
+
+              if (targetWrapper) { 
+
+                targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
+
+              } 
+
+            } 
+
+          } 
+
+        }); 
+
+ 
+
+        // Se arrivo già con #page=N 
+
+        const initialMatch = location.hash.match(/#page=(\d+)/); 
+
+        if (initialMatch) { 
+
+          const targetPage = parseInt(initialMatch[1], 10); 
+
+          setTimeout(() => { 
+
+            const targetWrapper = container.children[targetPage - 1]; 
+
+            if (targetWrapper) { 
+
+              targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
+
+            } 
+
+          }, 1000); 
+
+        } 
+
+ 
+
+      }); 
+
+    }); 
+
+ 
+
+    function renderPage(pdf, pageNum, destinations) { 
 
       pdf.getPage(pageNum).then(page => { 
 
@@ -222,21 +302,53 @@
 
                 } else if (annotation.dest) { 
 
-                  // Link interno → resolve con getDestination + getPageIndex 
+                  // Link interno 
 
-                  pdf.getDestination(annotation.dest).then(dest => { 
+                  if (typeof annotation.dest === 'string') { 
 
-                    if (!dest) return; 
+                    // Named Destination → lookup in destinations 
 
-                    const destRef = dest[0]; 
+                    const dest = destinations[annotation.dest]; 
+
+                    if (dest && dest[0]) { 
+
+                      pdf.getPageIndex(dest[0]).then(pageIndex => { 
+
+                        const pageNumber = pageIndex + 1; 
+
+                        link.href = `#page=${pageNumber}`; 
+
+                        link.addEventListener('click', (e) => { 
+
+                          e.preventDefault(); 
+
+                          const targetWrapper = container.children[pageNumber - 1]; 
+
+                          if (targetWrapper) { 
+
+                            targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
+
+                            history.replaceState(null, '', `#page=${pageNumber}`); 
+
+                          } 
+
+                        }); 
+
+                      }); 
+
+                    } 
+
+                  } else if (Array.isArray(annotation.dest)) { 
+
+                    // Destination array diretta 
+
+                    const destRef = annotation.dest[0]; 
 
                     pdf.getPageIndex(destRef).then(pageIndex => { 
 
                       const pageNumber = pageIndex + 1; 
 
                       link.href = `#page=${pageNumber}`; 
-
-                      // Se vuoi scroll immediato: 
 
                       link.addEventListener('click', (e) => { 
 
@@ -256,7 +368,7 @@
 
                     }); 
 
-                  }); 
+                  } 
 
                 } 
 
@@ -277,74 +389,6 @@
     } 
 
  
-
-    pdfjsLib.getDocument(url).promise.then(pdf => { 
-
-      console.log(`PDF caricato: ${pdf.numPages} pagine`); 
-
- 
-
-      // Render tutte le pagine 
-
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { 
-
-        renderPage(pdf, pageNum); 
-
-      } 
-
- 
-
-      // Supporta #page=N 
-
-      window.addEventListener('hashchange', () => { 
-
-        const match = location.hash.match(/#page=(\d+)/); 
-
-        if (match) { 
-
-          const targetPage = parseInt(match[1], 10); 
-
-          if (targetPage >= 1 && targetPage <= pdf.numPages) { 
-
-            const targetWrapper = container.children[targetPage - 1]; 
-
-            if (targetWrapper) { 
-
-              targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
-
-            } 
-
-          } 
-
-        } 
-
-      }); 
-
- 
-
-      // Se arrivo già con #page=N 
-
-      const initialMatch = location.hash.match(/#page=(\d+)/); 
-
-      if (initialMatch) { 
-
-        const targetPage = parseInt(initialMatch[1], 10); 
-
-        setTimeout(() => { 
-
-          const targetWrapper = container.children[targetPage - 1]; 
-
-          if (targetWrapper) { 
-
-            targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
-
-          } 
-
-        }, 1000); 
-
-      } 
-
-    }); 
 
   </script> 
 
