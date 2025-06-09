@@ -51,11 +51,11 @@ See https://github.com/adobe-type-tools/cmap-resources
 
   <body>
     <canvas id="pdf-canvas"></canvas>
-  <script>
-    const url ="/compressed.tracemonkey-pldi-09.pdf"
-    const pdfjsLib = window['../build/pdf'];
+  <script type="module">
+    import * as pdfjsLib from '../build/pdf.mjs'
+    
     pdfjsLib.GlobalWorkerOptions.workerSrc ='../build/pdf.worker.mjs';
-    pdfjsLib.getDocument(url).promise.then(pdf=>{
+    pdfjsLib.getDocument('../web/compressed.tracemonkey-pldi-09.pdf').promise.then(pdf=>{
       pdf.getPage(1).then(page=>{
         const viewport = page.getViewport({scale:1.5});
         const canvas = document.getElementById('pdf-canvas');
