@@ -35,70 +35,131 @@
     const url = '../web/compressed.tracemonkey-pldi-09.pdf';
     const container = document.getElementById('pdf-container');
 
-    function renderPage(pdf, pageNum) {
-      pdf.getPage(pageNum).then(page => {
-        const viewport = page.getViewport({ scale: 1.5 });
+     function renderPage(pdf, pageNum) { 
 
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+  pdf.getPage(pageNum).then(page => { 
 
-        container.appendChild(canvas);
+    const viewport = page.getViewport({ scale: 1.5 }); 
 
-        page.render({
-          canvasContext: context,
-          viewport: viewport
-        }).promise.then(() => {
-          // Dopo che la pagina è disegnata, aggiungi i link (se vuoi)
-          page.getAnnotations().then(annotations => {
-            annotations.forEach(annotation => {
-              if (annotation.subtype === 'Link' && annotation.dest) {
-                // Internal link → esempio base: logga il link
-                console.log(`Link interno a destinazione:, ${annotation.dest}`);
-                // Se vuoi potresti creare overlay HTML per i link qui
-              }
-            });
-          });
-        });
-      });
-    }
+ 
 
-    pdfjsLib.getDocument(url).promise.then(pdf => {
-      console.log(`PDF caricato:${pdf.numPages}pagine`);
+    const canvas = document.createElement('canvas'); 
 
-      // Render tutte le pagine
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        renderPage(pdf, pageNum);
-      }
+    const context = canvas.getContext('2d'); 
 
-      // Supporta #page=N nella URL (internal link rudimentale)
-      window.addEventListener('hashchange', () => {
-        const match = location.hash.match(/#page=(\d+)/);
-        if (match) {
-          const targetPage = parseInt(match[1], 10);
-          if (targetPage >= 1 && targetPage <= pdf.numPages) {
-            // Scrolla al canvas della pagina corrispondente
-            const targetCanvas = container.children[targetPage - 1];
-            if (targetCanvas) {
-              targetCanvas.scrollIntoView({ behavior: 'smooth' });
-            }
-          }
-        }
-      });
+    canvas.height = viewport.height; 
 
-      // Se arrivi già con #page=N all'inizio → scroll iniziale
-      const initialMatch = location.hash.match(/#page=(\d+)/);
-      if (initialMatch) {
-        const targetPage = parseInt(initialMatch[1], 10);
-        setTimeout(() => {
-          const targetCanvas = container.children[targetPage - 1];
-          if (targetCanvas) {
-            targetCanvas.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 1000); // attende che i canvas siano disegnati
-      }
-    });
+    canvas.width = viewport.width; 
+
+ 
+
+    container.appendChild(canvas); 
+
+ 
+
+    // Imposta la posizione relativa per overlay 
+
+    container.style.position = 'relative'; 
+
+ 
+
+    page.render({ 
+
+      canvasContext: context, 
+
+      viewport: viewport 
+
+    }).promise.then(() => { 
+
+      page.getAnnotations().then(annotations => { 
+
+        const linkLayer = document.createElement('div'); 
+
+        linkLayer.style.position = 'absolute'; 
+
+        linkLayer.style.top = canvas.offsetTop + 'px'; 
+
+        linkLayer.style.left = canvas.offsetLeft + 'px'; 
+
+        linkLayer.style.width = canvas.width + 'px'; 
+
+        linkLayer.style.height = canvas.height + 'px'; 
+
+        linkLayer.style.pointerEvents = 'none'; 
+
+        linkLayer.style.zIndex = 10; 
+
+ 
+
+        container.appendChild(linkLayer); 
+
+ 
+
+        annotations.forEach(annotation => { 
+
+          if (annotation.subtype === 'Link') { 
+
+            const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
+
+            const view = viewport.transform; 
+
+            const x = view[0] * rect[0] + view[2] * rect[1] + view[4]; 
+
+            const y = view[1] * rect[1] + view[3] * rect[1] + view[5]; 
+
+            const width = (rect[2] - rect[0]) * view[0]; 
+
+            const height = (rect[3] - rect[1]) * view[3]; 
+
+ 
+
+            const link = document.createElement('a'); 
+
+            link.style.position = 'absolute'; 
+
+            link.style.left = `${x}px`; 
+
+            link.style.top = `${y - height}px`; // corregge Y 
+
+            link.style.width = `${width}px`; 
+
+            link.style.height = `${height}px`; 
+
+            link.style.display = 'block'; 
+
+            link.style.pointerEvents = 'auto'; 
+
+            link.style.background = 'transparent'; 
+
+ 
+
+            if (annotation.url) { 
+
+              link.href = annotation.url; 
+
+              link.target = '_blank'; 
+
+            } else if (annotation.dest) { 
+
+              link.href = `#page=${annotation.dest[0].num || annotation.dest}`; 
+
+            } 
+
+ 
+
+            linkLayer.appendChild(link); 
+
+          } 
+
+        }); 
+
+      }); 
+
+    }); 
+
+  }); 
+
+} 
   </script>
 </body>
 </html>
