@@ -80,7 +80,7 @@
 
       pointer-events: auto; 
 
-      background: transparent; /* metti rgba(0,0,255,0.1) per debug */ 
+      background: transparent; /* per debug: rgba(255,0,0,0.1); */ 
 
     } 
 
@@ -202,9 +202,19 @@
 
                 link.style.height = `${height}px`; 
 
+                link.style.position = 'absolute'; 
+
+                link.style.display = 'block'; 
+
+                link.style.pointerEvents = 'auto'; 
+
+                link.style.background = 'transparent'; // debug: rgba(255,0,0,0.1) 
+
  
 
                 if (annotation.url) { 
+
+                  // Link esterno 
 
                   link.href = annotation.url; 
 
@@ -212,7 +222,41 @@
 
                 } else if (annotation.dest) { 
 
-                  link.href = `#page=${annotation.dest[0].num || annotation.dest}`; 
+                  // Link interno → resolve con getDestination + getPageIndex 
+
+                  pdf.getDestination(annotation.dest).then(dest => { 
+
+                    if (!dest) return; 
+
+                    const destRef = dest[0]; 
+
+                    pdf.getPageIndex(destRef).then(pageIndex => { 
+
+                      const pageNumber = pageIndex + 1; 
+
+                      link.href = `#page=${pageNumber}`; 
+
+                      // Se vuoi scroll immediato: 
+
+                      link.addEventListener('click', (e) => { 
+
+                        e.preventDefault(); 
+
+                        const targetWrapper = container.children[pageNumber - 1]; 
+
+                        if (targetWrapper) { 
+
+                          targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
+
+                          history.replaceState(null, '', `#page=${pageNumber}`); 
+
+                        } 
+
+                      }); 
+
+                    }); 
+
+                  }); 
 
                 } 
 
