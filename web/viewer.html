@@ -32,7 +32,7 @@
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = '../build/pdf.worker.mjs';
 
-    const url = '../web/compressed.tracemonkey-pldi-09.pdf';
+    const url = '../docs/file.pdf';
     const container = document.getElementById('pdf-container');
 
     function renderPage(pdf, pageNum) {
@@ -55,7 +55,7 @@
             annotations.forEach(annotation => {
               if (annotation.subtype === 'Link' && annotation.dest) {
                 // Internal link → esempio base: logga il link
-                console.log(Link interno a destinazione:, annotation.dest);
+                console.log(`Link interno a destinazione:, ${annotation.dest}`);
                 // Se vuoi potresti creare overlay HTML per i link qui
               }
             });
@@ -65,7 +65,7 @@
     }
 
     pdfjsLib.getDocument(url).promise.then(pdf => {
-      console.log(PDF caricato: ${pdf.numPages} pagine);
+      console.log(`PDF caricato:${pdf.numPages}pagine`);
 
       // Render tutte le pagine
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
