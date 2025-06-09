@@ -1,73 +1,104 @@
-﻿<!DOCTYPE html>
-<!--
-Copyright 2012 Mozilla Foundation
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Adobe CMap resources are covered by their own copyright but the same license:
-
-    Copyright 1990-2015 Adobe Systems Incorporated.
-
-See https://github.com/adobe-type-tools/cmap-resources
--->
-<html dir="ltr" mozdisallowselectionprint>
-  <head>
-    <meta charset="utf-8">
-    <meta name="google" content="notranslate">
-    <title>PDF.js viewer</title>
-
-<!-- This snippet is used in production (included from viewer.html) -->
-<link rel="resource" type="application/l10n" href="locale/locale.json">
-<script src="../build/pdf.mjs" type="module"></script>
-
-    <link rel="stylesheet" href="viewer.css">
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PDF Minimal Viewer - Tutte le pagine con link interni</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    html, body{
-      margin: 0 auto;
+    html, body {
+      margin: 0;
       padding: 0;
-     height: 100%;
-    background: #ffff;
-    }
-    #pdf-convas{
-      display: block;
-      margin: 0 auto;
-      width: 100%;
       height: 100%;
-       object-fit: contain;
+      background: #f0f0f0;
+    }
+    #pdf-container {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 10px;
+    }
+    canvas {
+      display: block;
+      margin: 20px auto;
+      border: 1px solid #ccc;
     }
   </style>
-  </head>
+</head>
+<body>
+  <div id="pdf-container"></div>
 
-
-  <body>
-    <canvas id="pdf-canvas"></canvas>
   <script type="module">
-    import * as pdfjsLib from '../build/pdf.mjs'
-    
-    pdfjsLib.GlobalWorkerOptions.workerSrc ='../build/pdf.worker.mjs';
-    pdfjsLib.getDocument('../web/compressed.tracemonkey-pldi-09.pdf').promise.then(pdf=>{
-      pdf.getPage(1).then(page=>{
-        const viewport = page.getViewport({scale:1.5});
-        const canvas = document.getElementById('pdf-canvas');
+    import * as pdfjsLib from '../build/pdf.mjs';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '../build/pdf.worker.mjs';
+
+    const url = '../web/compressed.tracemonkey-pldi-09.pdf';
+    const container = document.getElementById('pdf-container');
+
+    function renderPage(pdf, pageNum) {
+      pdf.getPage(pageNum).then(page => {
+        const viewport = page.getViewport({ scale: 1.5 });
+
+        const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
+
+        container.appendChild(canvas);
+
         page.render({
-          canvasContext:context,
+          canvasContext: context,
           viewport: viewport
+        }).promise.then(() => {
+          // Dopo che la pagina è disegnata, aggiungi i link (se vuoi)
+          page.getAnnotations().then(annotations => {
+            annotations.forEach(annotation => {
+              if (annotation.subtype === 'Link' && annotation.dest) {
+                // Internal link → esempio base: logga il link
+                console.log(Link interno a destinazione:, annotation.dest);
+                // Se vuoi potresti creare overlay HTML per i link qui
+              }
+            });
+          });
         });
       });
+    }
+
+    pdfjsLib.getDocument(url).promise.then(pdf => {
+      console.log(PDF caricato: ${pdf.numPages} pagine);
+
+      // Render tutte le pagine
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        renderPage(pdf, pageNum);
+      }
+
+      // Supporta #page=N nella URL (internal link rudimentale)
+      window.addEventListener('hashchange', () => {
+        const match = location.hash.match(/#page=(\d+)/);
+        if (match) {
+          const targetPage = parseInt(match[1], 10);
+          if (targetPage >= 1 && targetPage <= pdf.numPages) {
+            // Scrolla al canvas della pagina corrispondente
+            const targetCanvas = container.children[targetPage - 1];
+            if (targetCanvas) {
+              targetCanvas.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        }
+      });
+
+      // Se arrivi già con #page=N all'inizio → scroll iniziale
+      const initialMatch = location.hash.match(/#page=(\d+)/);
+      if (initialMatch) {
+        const targetPage = parseInt(initialMatch[1], 10);
+        setTimeout(() => {
+          const targetCanvas = container.children[targetPage - 1];
+          if (targetCanvas) {
+            targetCanvas.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 1000); // attende che i canvas siano disegnati
+      }
     });
   </script>
-  </body>
+</body>
 </html>
