@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>PDF Viewer con link interni - finale 2</title>
+  <title>PDF Viewer con link interni - finale stabile</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body {
@@ -102,27 +102,29 @@
 
       const linkLayer = document.createElement('div');
       linkLayer.className = 'link-layer';
-      linkLayer.style.width = canvas.clientWidth + 'px';
-      linkLayer.style.height = canvas.clientHeight + 'px';
+      linkLayer.style.width = canvas.width + 'px';
+      linkLayer.style.height = canvas.height + 'px';
 
       pageWrapper.appendChild(linkLayer);
-
-      const scaleX = canvas.clientWidth / canvas.width;
-      const scaleY = canvas.clientHeight / canvas.height;
 
       annotations.forEach(async (annotation) => {
         console.log('Annotation:', annotation);
         if (annotation.subtype === 'Link' && annotation.dest) {
+          const transform = viewport.transform;
+          const rect = pdfjsLib.Util.normalizeRect(annotation.rect);
 
-          // Conversione corretta della rectangle
-          const viewportRect = viewport.convertToViewportRectangle(annotation.rect);
+          const x1 = transform[0] * rect[0] + transform[2] * rect[1] + transform[4];
+          const y1 = transform[1] * rect[1] + transform[3] * rect[1] + transform[5];
+          const x2 = transform[0] * rect[2] + transform[2] * rect[3] + transform[4];
+          const y2 = transform[1] * rect[3] + transform[3] * rect[3] + transform[5];
 
-          const left = Math.min(viewportRect[0], viewportRect[2]) * scaleX;
-          const top = Math.min(viewportRect[1], viewportRect[3]) * scaleY;
-          const width = Math.abs(viewportRect[2] - viewportRect[0]) * scaleX;
-          const height = Math.abs(viewportRect[3] - viewportRect[1]) * scaleY;
+          const left = Math.min(x1, x2);
+          const top = Math.min(y1, y2);
+          const width = Math.abs(x2 - x1);
+          const height = Math.abs(y2 - y1);
 
           const link = document.createElement('a');
+          link.style.position = 'absolute';
           link.style.left = `${left}px`;
           link.style.top = `${top}px`;
           link.style.width = `${width}px`;
@@ -134,10 +136,9 @@
           link.setAttribute('aria-label', 'Vai alla pagina');
           link.href = '#';
 
-          // compatibilità mobile
+          // Inner span per compatibilità mobile
           link.innerHTML = '<span style="display:block;width:100%;height:100%;">&nbsp;</span>';
 
-          // RISOLVIAMO BENE IL DEST
           const dest = await resolveDestination(annotation.dest);
           if (dest && dest[0] && typeof dest[0] === 'object' && 'num' in dest[0]) {
             try {
@@ -149,14 +150,12 @@
                 link.addEventListener('click', (e) => {
                   e.preventDefault();
                   scrollToPage(targetPageNum);
-                  // NON aggiorniamo l'URL (pulito)
                 });
 
                 linkLayer.appendChild(link);
               }
             } catch (err) {
               console.warn('Errore nel getPageIndex:', err);
-              // Se non riesce a risolvere la pagina, NON aggiungiamo il link
             }
           }
         }
