@@ -6,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer Ibrido (Text + Link corretti)</title> 
+  <title>PDF Viewer con link interni corretti</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -54,38 +54,6 @@
 
     } 
 
-    .text-layer { 
-
-      position: absolute; 
-
-      top: 0; left: 0; 
-
-      color: transparent; 
-
-      transform-origin: 0 0; 
-
-      line-height: 1; 
-
-      z-index: 10; 
-
-      pointer-events: none; 
-
-    } 
-
-    .text-layer span { 
-
-      position: absolute; 
-
-      white-space: pre; 
-
-      transform-origin: 0 0; 
-
-      pointer-events: auto; 
-
-      color: black; /* puoi mettere transparent se vuoi invisibile */ 
-
-    } 
-
     .link-layer { 
 
       position: absolute; 
@@ -106,7 +74,7 @@
 
       pointer-events: auto; 
 
-      background: rgba(0, 0, 255, 0.1); /* leggero blu trasparente per debug */ 
+      background: rgba(0, 0, 255, 0.1); /* debug → puoi rimuovere */ 
 
       border: 1px dashed rgba(0,0,255,0.3); 
 
@@ -244,62 +212,6 @@
 
  
 
-      // TEXT LAYER 
-
-      const textContent = await page.getTextContent(); 
-
-      const textLayerDiv = document.createElement('div'); 
-
-      textLayerDiv.className = 'text-layer'; 
-
-      textLayerDiv.style.width = canvas.width + 'px'; 
-
-      textLayerDiv.style.height = canvas.height + 'px'; 
-
-      pageWrapper.appendChild(textLayerDiv); 
-
- 
-
-      textContent.items.forEach((textItem) => { 
-
-        const tx = pdfjsLib.Util.transform( 
-
-          viewport.transform, 
-
-          textItem.transform 
-
-        ); 
-
- 
-
-        const span = document.createElement('span'); 
-
-        span.textContent = textItem.str; 
-
- 
-
-        const fontHeight = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]); 
-
-        span.style.fontSize = fontHeight + 'px'; 
-
- 
-
-        const scaleX = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]); 
-
- 
-
-        span.style.transform = `translate(${tx[4]}px, ${tx[5]}px) scaleX(${scaleX})`; 
-
-        span.style.transformOrigin = 'left bottom'; 
-
- 
-
-        textLayerDiv.appendChild(span); 
-
-      }); 
-
- 
-
       // LINK LAYER 
 
       const annotations = await page.getAnnotations(); 
@@ -318,25 +230,47 @@
 
       annotations.forEach(async (annotation) => { 
 
-        if (annotation.subtype === 'Link' && annotation.dest) { 
+        console.log(annotation); // per vedere cosa contiene 
+
+ 
+
+        // dest o action 
+
+        let destToResolve = null; 
+
+        if (annotation.dest) { 
+
+          destToResolve = annotation.dest; 
+
+        } else if (annotation.action) { 
+
+          destToResolve = annotation.action; 
+
+        } 
+
+ 
+
+        if (annotation.subtype === 'Link' && destToResolve && annotation.rect) { 
 
           const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
 
  
 
-          // usa applyTransform per correggere il rect 
+          // Trasforma i due angoli 
 
-          const transformedRect = pdfjsLib.Util.applyTransform(rect, viewport.transform); 
+          const [x1, y1] = pdfjsLib.Util.applyTransform([rect[0], rect[1]], viewport.transform); 
+
+          const [x2, y2] = pdfjsLib.Util.applyTransform([rect[2], rect[3]], viewport.transform); 
 
  
 
-          const x = transformedRect[0]; 
+          const x = x1; 
 
-          const y = transformedRect[1]; 
+          const y = y1; 
 
-          const width = transformedRect[2] - transformedRect[0]; 
+          const width = x2 - x1; 
 
-          const height = transformedRect[3] - transformedRect[1]; 
+          const height = y2 - y1; 
 
  
 
@@ -354,11 +288,11 @@
 
           link.style.pointerEvents = 'auto'; 
 
-          link.style.background = 'rgba(0,0,255,0.1)'; // debug → puoi rimuovere poi 
+          link.style.background = 'rgba(0,0,255,0.1)'; // debug 
 
  
 
-          const dest = await resolveDestination(annotation.dest); 
+          const dest = await resolveDestination(destToResolve); 
 
           if (dest && dest[0]) { 
 
