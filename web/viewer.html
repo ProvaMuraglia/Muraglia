@@ -6,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer con link interni corretti</title> 
+  <title>PDF Viewer con link interni solo</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -62,7 +62,7 @@
 
       pointer-events: none; 
 
-      z-index: 20; 
+      z-index: 10; 
 
     } 
 
@@ -74,9 +74,7 @@
 
       pointer-events: auto; 
 
-      background: rgba(0, 0, 255, 0.1); /* debug, togliere se vuoi */ 
-
-      border: 1px dashed rgba(0,0,255,0.3); 
+      background: transparent; 
 
     } 
 
@@ -105,24 +103,6 @@
   const url = '../web/compressed.tracemonkey-pldi-09.pdf'; 
 
   const container = document.getElementById('pdf-container'); 
-
- 
-
-  function applyTransform(point, transform) { 
-
-    const [x, y] = point; 
-
-    const [a, b, c, d, e, f] = transform; 
-
-    return [ 
-
-      a * x + c * y + e, 
-
-      b * x + d * y + f 
-
-    ]; 
-
-  } 
 
  
 
@@ -198,6 +178,22 @@
 
  
 
+    function applyTransform([x, y], transform) { 
+
+      const [a, b, c, d, e, f] = transform; 
+
+      return [ 
+
+        a * x + c * y + e, 
+
+        b * x + d * y + f, 
+
+      ]; 
+
+    } 
+
+ 
+
     async function renderPage(page) { 
 
       const viewport = page.getViewport({ scale: 1.5 }); 
@@ -238,6 +234,8 @@
 
       linkLayer.className = 'link-layer'; 
 
+      // Usa le dimensioni visive del canvas, non la dimensione interna 
+
       linkLayer.style.width = canvas.clientWidth + 'px'; 
 
       linkLayer.style.height = canvas.clientHeight + 'px'; 
@@ -248,27 +246,23 @@
 
  
 
-      annotations.forEach(async (annotation) => { 
+      // rapporto di scala tra dimensione canvas e dimensione visualizzata 
 
-        let destToResolve = null; 
+      const scaleX = canvas.clientWidth / canvas.width; 
 
-        if (annotation.dest) { 
-
-          destToResolve = annotation.dest; 
-
-        } else if (annotation.action) { 
-
-          destToResolve = annotation.action; 
-
-        } 
+      const scaleY = canvas.clientHeight / canvas.height; 
 
  
 
-        if (annotation.subtype === 'Link' && destToResolve && annotation.rect) { 
+      annotations.forEach(async (annotation) => { 
+
+        if (annotation.subtype === 'Link' && annotation.dest) { 
 
           const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
 
  
+
+          // Calcola i due angoli trasformati 
 
           const [x1, y1] = applyTransform([rect[0], rect[1]], viewport.transform); 
 
@@ -276,17 +270,21 @@
 
  
 
-          const left = Math.min(x1, x2); 
+          // Calcola posizione e dimensioni con scaling per il ridimensionamento CSS 
 
-          const top = Math.min(y1, y2); 
+          const left = Math.min(x1, x2) * scaleX; 
 
-          const width = Math.abs(x2 - x1); 
+          const top = canvas.clientHeight - Math.max(y1, y2) * scaleY; // y invertita rispetto al canvas 
 
-          const height = Math.abs(y2 - y1); 
+          const width = Math.abs(x2 - x1) * scaleX; 
+
+          const height = Math.abs(y2 - y1) * scaleY; 
 
  
 
           const link = document.createElement('a'); 
+
+          link.style.position = 'absolute'; 
 
           link.style.left = `${left}px`; 
 
@@ -296,15 +294,13 @@
 
           link.style.height = `${height}px`; 
 
- 
-
           link.style.pointerEvents = 'auto'; 
 
-          link.style.background = 'rgba(0,0,255,0.1)'; // debug visivo, togli se vuoi 
+          link.style.background = 'transparent'; 
 
  
 
-          const dest = await resolveDestination(destToResolve); 
+          const dest = await resolveDestination(annotation.dest); 
 
           if (dest && dest[0]) { 
 
