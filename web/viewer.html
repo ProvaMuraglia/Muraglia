@@ -274,7 +274,7 @@
 
           const left = Math.min(x1, x2) * scaleX; 
 
-          const top = canvas.clientHeight - Math.max(y1, y2) * scaleY; // y invertita rispetto al canvas 
+          const top = Math.min(y1, y2) * scaleY; 
 
           const width = Math.abs(x2 - x1) * scaleX; 
 
