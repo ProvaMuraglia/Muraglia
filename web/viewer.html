@@ -8,7 +8,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer con link interni solo</title> 
+  <title>PDF Viewer con link interni con FitR</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -62,7 +62,7 @@
 
       top: 0; left: 0; 
 
-      pointer-events: none;   /* layer non riceve eventi */ 
+      pointer-events: none; 
 
       z-index: 10; 
 
@@ -74,9 +74,9 @@
 
       display: block; 
 
-      pointer-events: auto;   /* solo i link sono cliccabili */ 
+      pointer-events: auto; 
 
-      background: transparent; 
+      background: rgba(255, 0, 0, 0.05); /* per debug, poi puoi mettere 0.0 */ 
 
     } 
 
@@ -138,7 +138,7 @@
 
  
 
-    function scrollToPage(pageNum) { 
+    async function scrollToPage(pageNum, offsetY = 0) { 
 
       if (pageNum >= 1 && pageNum <= pdf.numPages) { 
 
@@ -146,7 +146,15 @@
 
         if (wrapper) { 
 
-          wrapper.scrollIntoView({ behavior: 'smooth' }); 
+          const top = wrapper.offsetTop + offsetY; 
+
+          window.scrollTo({ 
+
+            top: top, 
+
+            behavior: 'smooth' 
+
+          }); 
 
         } 
 
@@ -240,8 +248,6 @@
 
  
 
-          // Calcolo corretto della posizione 
-
           const x = transform[0] * rect[0] + transform[2] * rect[1] + transform[4]; 
 
           const y = transform[1] * rect[1] + transform[3] * rect[1] + transform[5]; 
@@ -252,7 +258,7 @@
 
  
 
-          console.log('Link annotation:', annotation.dest, 'rect:', rect, 'x:', x, 'y:', y, 'w:', width, 'h:', height); 
+          console.log('Link annotation:', annotation.dest); 
 
  
 
@@ -260,15 +266,11 @@
 
           link.style.left = `${x}px`; 
 
-          link.style.top = `${y - height}px`;   // correzione per sistema PDF coords 
+          link.style.top = `${y - height}px`; 
 
           link.style.width = `${width}px`; 
 
           link.style.height = `${height}px`; 
-
-          link.style.pointerEvents = 'auto'; 
-
-          link.style.background = 'rgba(255, 0, 0, 0.0)';  // trasparente 
 
  
 
@@ -284,13 +286,53 @@
 
  
 
+            let offsetY = 0; 
+
+ 
+
+            if (dest[1]?.name === 'FitR') { 
+
+              // Calcolo l'offset verticale relativo alla pagina 
+
+              const targetX = dest[2]; 
+
+              const targetY = dest[5]; // Y bottom in PDF space (inverted!) 
+
+ 
+
+              const targetViewport = (await pdf.getPage(targetPageNum)).getViewport({ scale: 1.5 }); 
+
+ 
+
+              // Converti Y PDF space → Y DOM space 
+
+              const [, , , scaleY, , offsetYInViewport] = targetViewport.transform; 
+
+ 
+
+              // In PDF space l'asse Y è invertito rispetto al DOM 
+
+              const canvasHeight = targetViewport.height; 
+
+              const viewportY = canvasHeight - targetY * scaleY; 
+
+ 
+
+              // Offset da applicare allo scroll 
+
+              offsetY = viewportY; 
+
+            } 
+
+ 
+
             link.href = `#page=${targetPageNum}`; 
 
             link.addEventListener('click', (e) => { 
 
               e.preventDefault(); 
 
-              scrollToPage(targetPageNum); 
+              scrollToPage(targetPageNum, offsetY); 
 
               history.replaceState(null, '', `#page=${targetPageNum}`); 
 
