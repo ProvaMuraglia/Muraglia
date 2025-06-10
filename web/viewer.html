@@ -226,7 +226,10 @@
 
       pageWrapper.appendChild(linkLayer); 
 
- 
+  const ciao = await page.getAnnotations();
+     ciao.forEach(async (annotation) => {
+      console.log('ANNOTATIONS: ', annotation)
+       })
 
       annotations.forEach(async (annotation) => { 
 
