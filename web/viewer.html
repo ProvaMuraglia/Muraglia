@@ -6,385 +6,6 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer Fullscreen + Link Funzionanti</title> 
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> 
-
-  <style> 
-
-    html, body { 
-
-      margin: 0; 
-
-      padding: 0; 
-
-      background: #fff; 
-
-      font-family: sans-serif; 
-
-      height: 100%; 
-
-      overflow: auto; 
-
-    } 
-
-    #pdf-container { 
-
-      width: 100%; 
-
-      max-width: 1000px; 
-
-      margin: 0 auto; 
-
-      padding: 20px 0; 
-
-      position: relative; 
-
-    } 
-
-    .page-wrapper { 
-
-      position: relative; 
-
-      margin: 0 auto 20px auto; 
-
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-
-    } 
-
-    canvas { 
-
-      display: block; 
-
-      width: 100%; 
-
-      height: auto; 
-
-    } 
-
-    .link-layer { 
-
-      position: absolute; 
-
-      top: 0; 
-
-      left: 0; 
-
-      pointer-events: none; 
-
-      z-index: 10; 
-
-    } 
-
-    .link-layer a { 
-
-      position: absolute; 
-
-      display: block; 
-
-      pointer-events: auto; 
-
-      background: transparent; /* debug: rgba(255,0,0,0.1); */ 
-
-    } 
-
-  </style> 
-
-</head> 
-
-<body> 
-
- 
-
-  <div id="pdf-container"></div> 
-
- 
-
-  <script type="module"> 
-
-    import * as pdfjsLib from '../build/pdf.mjs'; 
-
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '../build/pdf.worker.mjs'; 
-
- 
-
-    const url = '../web/compressed.tracemonkey-pldi-09.pdf'; 
-
-    const container = document.getElementById('pdf-container'); 
-
- 
-
-    pdfjsLib.getDocument(url).promise.then(pdf => { 
-
-      console.log(`PDF caricato: ${pdf.numPages} pagine`); 
-
- 
-
-      pdf.getDestinations().then(destinations => { 
-
- 
-
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { 
-
-          renderPage(pdf, pageNum, destinations); 
-
-        } 
-
- 
-
-        window.addEventListener('hashchange', () => { 
-
-          const match = location.hash.match(/#page=(\d+)/); 
-
-          if (match) { 
-
-            const targetPage = parseInt(match[1], 10); 
-
-            if (targetPage >= 1 && targetPage <= pdf.numPages) { 
-
-              const targetWrapper = container.children[targetPage - 1]; 
-
-              if (targetWrapper) { 
-
-                targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
-
-              } 
-
-            } 
-
-          } 
-
-        }); 
-
- 
-
-        const initialMatch = location.hash.match(/#page=(\d+)/); 
-
-        if (initialMatch) { 
-
-          const targetPage = parseInt(initialMatch[1], 10); 
-
-          setTimeout(() => { 
-
-            const targetWrapper = container.children[targetPage - 1]; 
-
-            if (targetWrapper) { 
-
-              targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
-
-            } 
-
-          }, 1000); 
-
-        } 
-
- 
-
-      }); 
-
-    }); 
-
- 
-
-    function renderPage(pdf, pageNum, destinations) { 
-
-      pdf.getPage(pageNum).then(page => { 
-
-        const viewport = page.getViewport({ scale: 1.5 }); 
-
- 
-
-        const pageWrapper = document.createElement('div'); 
-
-        pageWrapper.className = 'page-wrapper'; 
-
- 
-
-        const canvas = document.createElement('canvas'); 
-
-        const context = canvas.getContext('2d'); 
-
-        canvas.height = viewport.height; 
-
-        canvas.width = viewport.width; 
-
- 
-
-        pageWrapper.appendChild(canvas); 
-
-        container.appendChild(pageWrapper); 
-
- 
-
-        page.render({ 
-
-          canvasContext: context, 
-
-          viewport: viewport 
-
-        }).promise.then(() => { 
-
-          page.getAnnotations().then(annotations => { 
-
-            const linkLayer = document.createElement('div'); 
-
-            linkLayer.className = 'link-layer'; 
-
-            linkLayer.style.width = canvas.width + 'px'; 
-
-            linkLayer.style.height = canvas.height + 'px'; 
-
- 
-
-            pageWrapper.appendChild(linkLayer); 
-
- 
-
-            annotations.forEach(annotation => { 
-
-              if (annotation.subtype === 'Link') { 
-
-                const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
-
-                const transform = viewport.transform; 
-
- 
-
-                const x = transform[0] * rect[0] + transform[2] * rect[1] + transform[4]; 
-
-                const y = transform[1] * rect[1] + transform[3] * rect[1] + transform[5]; 
-
-                const width = (rect[2] - rect[0]) * transform[0]; 
-
-                const height = (rect[3] - rect[1]) * transform[3]; 
-
- 
-
-                const link = document.createElement('a'); 
-
-                link.style.left = `${x}px`; 
-
-                link.style.top = `${y - height}px`; 
-
-                link.style.width = `${width}px`; 
-
-                link.style.height = `${height}px`; 
-
-                link.style.position = 'absolute'; 
-
-                link.style.display = 'block'; 
-
-                link.style.pointerEvents = 'auto'; 
-
-                link.style.background = 'transparent'; // debug: rgba(255,0,0,0.1) 
-
- 
-
-                if (annotation.url) { 
-
-                  link.href = annotation.url; 
-
-                  link.target = '_blank'; 
-
-                } else if (annotation.dest) { 
-
-                  if (typeof annotation.dest === 'string') { 
-
-                    const dest = destinations[annotation.dest]; 
-
-                    if (dest && dest[0]) { 
-
-                      pdf.getPageIndex(dest[0]).then(pageIndex => { 
-
-                        const pageNumber = pageIndex + 1; 
-
-                        link.href = `#page=${pageNumber}`; 
-
-                        link.addEventListener('click', (e) => { 
-
-                          e.preventDefault(); 
-
-                          const targetWrapper = container.children[pageNumber - 1]; 
-
-                          if (targetWrapper) { 
-
-                            targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
-
-                            history.replaceState(null, '', `#page=${pageNumber}`); 
-
-                          } 
-
-                        }); 
-
-                      }); 
-
-                    } 
-
-                  } else if (Array.isArray(annotation.dest)) { 
-
-                    const destRef = annotation.dest[0]; 
-
-                    pdf.getPageIndex(destRef).then(pageIndex => { 
-
-                      const pageNumber = pageIndex + 1; 
-
-                      link.href = `#page=${pageNumber}`; 
-
-                      link.addEventListener('click', (e) => { 
-
-                        e.preventDefault(); 
-
-                        const targetWrapper = container.children[pageNumber - 1]; 
-
-                        if (targetWrapper) { 
-
-                          targetWrapper.scrollIntoView({ behavior: 'smooth' }); 
-
-                          history.replaceState(null, '', `#page=${pageNumber}`); 
-
-                        } 
-
-                      }); 
-
-                    }); 
-
-                  } 
-
-                } 
-
- 
-
-                linkLayer.appendChild(link); 
-
-              } 
-
-            }); 
-
-          }); 
-
-        }); 
-
-      }); 
-
-    } 
-
- 
-
-  </script> 
-
- 
-
-</body> 
-
-</html> 
-<!DOCTYPE html> 
-
-<html lang="it"> 
-
-<head> 
-
-  <meta charset="utf-8" /> 
-
   <title>PDF Viewer con link interni solo</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
@@ -479,7 +100,7 @@
 
  
 
-  const url = '../web/compressed.tracemonkey-pldi-09.pdf'; 
+  const url = '../docs/file.pdf'; 
 
   const container = document.getElementById('pdf-container'); 
 
@@ -604,10 +225,7 @@
  
 
       pageWrapper.appendChild(linkLayer); 
-    const ciao = await page.getAnnotations();
-     ciao.forEach(async (annotation) => {
-      console.log('ANNOTATIONS: ', annotation)
-       })
+
  
 
       annotations.forEach(async (annotation) => { 
@@ -616,27 +234,21 @@
 
           const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
 
-          const transform = viewport.transform; 
+          const x = rect[0] * viewport.transform[0]; 
 
- 
+          const y = viewport.height - rect[3] * viewport.transform[3]; 
 
-          const x = transform[0] * rect[0] + transform[2] * rect[1] + transform[4]; 
+          const width = (rect[2] - rect[0]) * viewport.transform[0]; 
 
-          const y = transform[1] * rect[1] + transform[3] * rect[1] + transform[5]; 
-
-          const width = (rect[2] - rect[0]) * transform[0]; 
-
-          const height = (rect[3] - rect[1]) * transform[3]; 
+          const height = (rect[3] - rect[1]) * viewport.transform[3]; 
 
  
 
           const link = document.createElement('a'); 
 
-          link.style.position = 'absolute'; 
-
           link.style.left = `${x}px`; 
 
-          link.style.top = `${y - height}px`; 
+          link.style.top = `${y}px`; 
 
           link.style.width = `${width}px`; 
 
@@ -682,8 +294,7 @@
 
     } 
 
-  });
-  
+  }); 
 
 </script> 
 
