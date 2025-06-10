@@ -1,3 +1,5 @@
+ 
+
 <!DOCTYPE html> 
 
 <html lang="it"> 
@@ -60,7 +62,7 @@
 
       top: 0; left: 0; 
 
-      pointer-events: none; 
+      pointer-events: none;   /* layer non riceve eventi */ 
 
       z-index: 10; 
 
@@ -72,7 +74,7 @@
 
       display: block; 
 
-      pointer-events: auto; 
+      pointer-events: auto;   /* solo i link sono cliccabili */ 
 
       background: transparent; 
 
@@ -226,10 +228,7 @@
 
       pageWrapper.appendChild(linkLayer); 
 
-  const ciao = await page.getAnnotations();
-     ciao.forEach(async (annotation) => {
-      console.log('ANNOTATIONS: ', annotation)
-       })
+ 
 
       annotations.forEach(async (annotation) => { 
 
@@ -237,13 +236,23 @@
 
           const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
 
-          const x = rect[0] * viewport.transform[0]; 
+          const transform = viewport.transform; 
 
-          const y = viewport.height - rect[3] * viewport.transform[3]; 
+ 
 
-          const width = (rect[2] - rect[0]) * viewport.transform[0]; 
+          // Calcolo corretto della posizione 
 
-          const height = (rect[3] - rect[1]) * viewport.transform[3]; 
+          const x = transform[0] * rect[0] + transform[2] * rect[1] + transform[4]; 
+
+          const y = transform[1] * rect[1] + transform[3] * rect[1] + transform[5]; 
+
+          const width = (rect[2] - rect[0]) * transform[0]; 
+
+          const height = (rect[3] - rect[1]) * transform[3]; 
+
+ 
+
+          console.log('Link annotation:', annotation.dest, 'rect:', rect, 'x:', x, 'y:', y, 'w:', width, 'h:', height); 
 
  
 
@@ -251,7 +260,7 @@
 
           link.style.left = `${x}px`; 
 
-          link.style.top = `${y}px`; 
+          link.style.top = `${y - height}px`;   // correzione per sistema PDF coords 
 
           link.style.width = `${width}px`; 
 
@@ -259,7 +268,7 @@
 
           link.style.pointerEvents = 'auto'; 
 
-          link.style.background = 'transparent'; 
+          link.style.background = 'rgba(255, 0, 0, 0.0)';  // trasparente 
 
  
 
@@ -272,6 +281,8 @@
             const pageIndex = await pdf.getPageIndex(pageRef); 
 
             const targetPageNum = pageIndex + 1; 
+
+ 
 
             link.href = `#page=${targetPageNum}`; 
 
