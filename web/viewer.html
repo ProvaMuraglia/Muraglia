@@ -6,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer con link interni - Mobile fix</title> 
+  <title>PDF Viewer con link interni - compatibile mobile</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -42,6 +42,8 @@
 
       box-shadow: 0 0 8px rgba(0,0,0,0.1); 
 
+      touch-action: manipulation; /* importante anche qui */ 
+
     } 
 
     canvas { 
@@ -52,6 +54,8 @@
 
       height: auto; 
 
+      touch-action: none; /* evitare che il canvas blocchi i tap sui link */ 
+
     } 
 
     .link-layer { 
@@ -60,9 +64,15 @@
 
       top: 0; left: 0; 
 
-      pointer-events: none; 
+      width: 100%; 
+
+      height: 100%; 
+
+      pointer-events: auto; 
 
       z-index: 10; 
+
+      touch-action: manipulation; 
 
     } 
 
@@ -74,21 +84,11 @@
 
       pointer-events: auto; 
 
-      background: transparent; 
+      background: rgba(255, 255, 255, 0); /* trasparente per mobile */ 
 
-      touch-action: manipulation; /* importantissimo per mobile */ 
-
-    } 
-
-    /* Opzionale per debug: 
-
-    .link-layer a { 
-
-      border: 1px solid red; 
+      touch-action: manipulation; 
 
     } 
-
-    */ 
 
   </style> 
 
@@ -304,8 +304,6 @@
 
           const link = document.createElement('a'); 
 
-          link.style.position = 'absolute'; 
-
           link.style.left = `${left}px`; 
 
           link.style.top = `${top}px`; 
@@ -316,9 +314,13 @@
 
           link.style.pointerEvents = 'auto'; 
 
-          link.style.background = 'transparent'; 
+          link.style.background = 'rgba(255, 255, 255, 0)'; 
 
-          link.style.touchAction = 'manipulation'; // fix mobile! 
+          link.style.touchAction = 'manipulation'; 
+
+          link.setAttribute('role', 'button'); 
+
+          link.setAttribute('aria-label', 'Vai alla pagina'); 
 
  
 
@@ -326,7 +328,7 @@
 
  
 
-          // Aggiungo un <span> vuoto per farlo "cliccabile" su mobile 
+          // span interno per garantire il click su mobile 
 
           link.innerHTML = '<span style="display:block;width:100%;height:100%;">&nbsp;</span>'; 
 
