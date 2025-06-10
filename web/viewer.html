@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>PDF Viewer con link interni - versione perfetta</title>
+  <title>PDF Viewer con link interni - Mobile Friendly</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body {
@@ -37,15 +37,16 @@
       z-index: 10;
       touch-action: manipulation;
     }
-    .link-layer a {
+    .link-layer div {
       position: absolute;
       display: block;
       pointer-events: auto;
       background: rgba(255, 255, 255, 0);
       touch-action: manipulation;
-      /* min size per migliorare usabilità su mobile */
       min-width: 20px;
       min-height: 20px;
+      /* per debugging puoi attivare questo: */
+      /* border: 1px dashed red; */
     }
   </style>
 </head>
@@ -143,24 +144,19 @@
           const width = Math.abs(viewportRect[2] - viewportRect[0]) * scaleX;
           const height = Math.abs(viewportRect[3] - viewportRect[1]) * scaleY;
 
-          const link = document.createElement('a');
-          link.style.left = `${left}px`;
-          link.style.top = `${top}px`;
-          link.style.width = `${width}px`;
-          link.style.height = `${height}px`;
-          link.style.pointerEvents = 'auto';
-          link.style.background = 'rgba(255, 255, 255, 0)';
-          link.style.touchAction = 'manipulation';
-          link.setAttribute('role', 'button');
-          link.setAttribute('aria-label', 'Vai alla pagina');
+          const linkDiv = document.createElement('div');
+          linkDiv.style.left = `${left}px`;
+          linkDiv.style.top = `${top}px`;
+          linkDiv.style.width = `${width}px`;
+          linkDiv.style.height = `${height}px`;
+          linkDiv.style.pointerEvents = 'auto';
+          linkDiv.style.background = 'rgba(255, 255, 255, 0)';
+          linkDiv.style.touchAction = 'manipulation';
+          linkDiv.setAttribute('role', 'button');
+          linkDiv.setAttribute('aria-label', 'Vai alla pagina');
 
-          // min size per sicurezza
-          link.style.minWidth = '20px';
-          link.style.minHeight = '20px';
-
-          link.href = '#';
-
-          link.innerHTML = '<span style="display:block;width:100%;height:100%;">&nbsp;</span>';
+          linkDiv.style.minWidth = '20px';
+          linkDiv.style.minHeight = '20px';
 
           const dest = await resolveDestination(annotation.dest);
           if (dest && dest[0]) {
@@ -168,14 +164,15 @@
             const pageIndex = await pdf.getPageIndex(pageRef);
             const targetPageNum = pageIndex + 1;
 
-            link.addEventListener('click', (e) => {
+            linkDiv.addEventListener('click', (e) => {
               e.preventDefault();
+              e.stopPropagation(); // importantissimo su mobile!
               scrollToPage(targetPageNum);
               history.replaceState(null, '', `#page=${targetPageNum}`);
             });
           }
 
-          linkLayer.appendChild(link);
+          linkLayer.appendChild(linkDiv);
         }
       });
     }
