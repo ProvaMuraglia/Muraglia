@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>PDF Viewer con link interni</title>
+  <title>PDF Viewer con link interni funzionanti</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body {
@@ -31,13 +31,14 @@
       top: 0; left: 0;
       pointer-events: none;
       z-index: 10;
+      width: 100%;
+      height: 100%;
     }
     .link-layer a {
       position: absolute;
       display: block;
       pointer-events: auto;
       background: transparent;
-      border: 0; /* nessun bordo */
     }
   </style>
 </head>
@@ -63,11 +64,6 @@
       return dest;
     }
 
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      await renderPage(page);
-    }
-
     function scrollToPage(pageNum) {
       if (pageNum >= 1 && pageNum <= pdf.numPages) {
         const wrapper = container.children[pageNum - 1];
@@ -89,11 +85,18 @@
       }, 500);
     }
 
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      await renderPage(page);
+    }
+
     async function renderPage(page) {
       const viewport = page.getViewport({ scale: 1.5 });
 
       const pageWrapper = document.createElement('div');
       pageWrapper.className = 'page-wrapper';
+      pageWrapper.style.width = viewport.width + 'px';
+      pageWrapper.style.height = viewport.height + 'px';
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -109,51 +112,55 @@
 
       const linkLayer = document.createElement('div');
       linkLayer.className = 'link-layer';
-      linkLayer.style.width = canvas.width + 'px';
-      linkLayer.style.height = canvas.height + 'px';
+      linkLayer.style.width = viewport.width + 'px';
+      linkLayer.style.height = viewport.height + 'px';
 
       pageWrapper.appendChild(linkLayer);
 
-      annotations.forEach(async (annotation) => {
+      for (const annotation of annotations) {
         if (annotation.subtype === 'Link' && annotation.dest) {
           const dest = await resolveDestination(annotation.dest);
-
           if (dest && dest[0]) {
             const pageRef = dest[0];
             const pageIndex = await pdf.getPageIndex(pageRef);
             const targetPageNum = pageIndex + 1;
 
-            // Trasforma i due angoli del rettangolo
-            const [x1, y1, x2, y2] = annotation.rect;
-            const transform = viewport.transform;
+            const rect = annotation.rect;
+            if (Array.isArray(rect) && rect.length === 4) {
+              const [x1, y1, x2, y2] = rect;
 
-            const p1 = pdfjsLib.Util.applyTransform([x1, y1], transform);
-            const p2 = pdfjsLib.Util.applyTransform([x2, y2], transform);
+              // Trasforma i due angoli usando viewport.transform
+              const p1 = pdfjsLib.Util.applyTransform([x1, y1], viewport.transform);
+              const p2 = pdfjsLib.Util.applyTransform([x2, y2], viewport.transform);
 
-            const left = Math.min(p1[0], p2[0]);
-            const top = Math.min(p1[1], p2[1]);
-            const width = Math.abs(p2[0] - p1[0]);
-            const height = Math.abs(p2[1] - p1[1]);
+              if (p1 && p2) {
+                const left = Math.min(p1[0], p2[0]);
+                const top = Math.min(p1[1], p2[1]);
+                const width = Math.abs(p2[0] - p1[0]);
+                const height = Math.abs(p2[1] - p1[1]);
 
-            const link = document.createElement('a');
-            link.style.left = `${left}px`;
-            link.style.top = `${top}px`;
-            link.style.width = `${width}px`;
-            link.style.height = `${height}px`;
-            link.style.pointerEvents = 'auto';
-            link.style.background = 'transparent'; // invisibile
+                const link = document.createElement('a');
+                link.href = `#page=${targetPageNum}`;
+                link.style.left = `${left}px`;
+                link.style.top = `${top}px`;
+                link.style.width = `${width}px`;
+                link.style.height = `${height}px`;
+                link.style.position = 'absolute';
+                link.style.pointerEvents = 'auto';
+                link.style.background = 'transparent';
 
-            // click semplice (per risolvere il problema su mobile!)
-            link.addEventListener('click', (e) => {
-              e.preventDefault();
-              scrollToPage(targetPageNum);
-              history.replaceState(null, '', `#page=${targetPageNum}`);
-            });
+                link.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  scrollToPage(targetPageNum);
+                  history.replaceState(null, '', `#page=${targetPageNum}`);
+                });
 
-            linkLayer.appendChild(link);
+                linkLayer.appendChild(link);
+              }
+            }
           }
         }
-      });
+      }
     }
   });
 </script>
