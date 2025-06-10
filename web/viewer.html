@@ -2,45 +2,48 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>PDF Viewer con link interni - finale stabile</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Mobile Viewer con Link Interni</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <style>
     html, body {
       margin: 0; padding: 0; height: 100%; background: #fff;
       font-family: sans-serif;
       overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
+
     #pdf-container {
       width: 100%;
-      max-width: 900px;
       margin: 0 auto;
-      padding: 20px 0;
+      padding: 10px 0;
     }
+
     .page-wrapper {
       position: relative;
-      margin-bottom: 20px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-      touch-action: manipulation;
+      margin-bottom: 10px;
     }
+
     canvas {
       display: block;
-      width: 100%;
+      width: 100vw; /* Full width per mobile */
       height: auto;
       touch-action: none;
     }
+
     .link-layer {
       position: absolute;
       top: 0; left: 0;
       width: 100%;
       height: 100%;
-      pointer-events: auto;
+      pointer-events: none; /* fondamentale per scroll mobile */
       z-index: 10;
-      touch-action: manipulation;
+      touch-action: none;
     }
+
     .link-layer a {
       position: absolute;
       display: block;
-      pointer-events: auto;
+      pointer-events: auto; /* Solo i link cliccabili */
       background: rgba(255, 255, 255, 0);
       touch-action: manipulation;
     }
@@ -83,7 +86,7 @@
     }
 
     async function renderPage(page) {
-      const viewport = page.getViewport({ scale: 1.5 });
+      const viewport = page.getViewport({ scale: 1.2 }); // scale 1.2 per mobile leggibile
 
       const pageWrapper = document.createElement('div');
       pageWrapper.className = 'page-wrapper';
@@ -102,29 +105,25 @@
 
       const linkLayer = document.createElement('div');
       linkLayer.className = 'link-layer';
-      linkLayer.style.width = canvas.width + 'px';
-      linkLayer.style.height = canvas.height + 'px';
+      linkLayer.style.width = canvas.clientWidth + 'px';
+      linkLayer.style.height = canvas.clientHeight + 'px';
 
       pageWrapper.appendChild(linkLayer);
 
+      const scaleX = canvas.clientWidth / canvas.width;
+      const scaleY = canvas.clientHeight / canvas.height;
+
       annotations.forEach(async (annotation) => {
-        console.log('Annotation:', annotation);
         if (annotation.subtype === 'Link' && annotation.dest) {
-          const transform = viewport.transform;
-          const rect = pdfjsLib.Util.normalizeRect(annotation.rect);
 
-          const x1 = transform[0] * rect[0] + transform[2] * rect[1] + transform[4];
-          const y1 = transform[1] * rect[1] + transform[3] * rect[1] + transform[5];
-          const x2 = transform[0] * rect[2] + transform[2] * rect[3] + transform[4];
-          const y2 = transform[1] * rect[3] + transform[3] * rect[3] + transform[5];
+          const viewportRect = viewport.convertToViewportRectangle(annotation.rect);
 
-          const left = Math.min(x1, x2);
-          const top = Math.min(y1, y2);
-          const width = Math.abs(x2 - x1);
-          const height = Math.abs(y2 - y1);
+          const left = Math.min(viewportRect[0], viewportRect[2]) * scaleX;
+          const top = Math.min(viewportRect[1], viewportRect[3]) * scaleY;
+          const width = Math.abs(viewportRect[2] - viewportRect[0]) * scaleX;
+          const height = Math.abs(viewportRect[3] - viewportRect[1]) * scaleY;
 
           const link = document.createElement('a');
-          link.style.position = 'absolute';
           link.style.left = `${left}px`;
           link.style.top = `${top}px`;
           link.style.width = `${width}px`;
@@ -135,9 +134,6 @@
           link.setAttribute('role', 'button');
           link.setAttribute('aria-label', 'Vai alla pagina');
           link.href = '#';
-
-          // Inner span per compatibilità mobile
-          link.innerHTML = '<span style="display:block;width:100%;height:100%;">&nbsp;</span>';
 
           const dest = await resolveDestination(annotation.dest);
           if (dest && dest[0] && typeof dest[0] === 'object' && 'num' in dest[0]) {
