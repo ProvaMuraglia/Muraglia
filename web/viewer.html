@@ -108,6 +108,24 @@
 
  
 
+  function applyTransform(point, transform) { 
+
+    const [x, y] = point; 
+
+    const [a, b, c, d, e, f] = transform; 
+
+    return [ 
+
+      a * x + c * y + e, 
+
+      b * x + d * y + f 
+
+    ]; 
+
+  } 
+
+ 
+
   pdfjsLib.getDocument(url).promise.then(async (pdf) => { 
 
     console.log(`PDF caricato: ${pdf.numPages} pagine`); 
@@ -232,8 +250,6 @@
 
       annotations.forEach(async (annotation) => { 
 
-        // Prendi dest o action se presenti 
-
         let destToResolve = null; 
 
         if (annotation.dest) { 
@@ -254,11 +270,9 @@
 
  
 
-          // Applica trasformazione ai due angoli del rettangolo 
+          const [x1, y1] = applyTransform([rect[0], rect[1]], viewport.transform); 
 
-          const [x1, y1] = pdfjsLib.Util.applyTransform([rect[0], rect[1]], viewport.transform); 
-
-          const [x2, y2] = pdfjsLib.Util.applyTransform([rect[2], rect[3]], viewport.transform); 
+          const [x2, y2] = applyTransform([rect[2], rect[3]], viewport.transform); 
 
  
 
@@ -286,7 +300,7 @@
 
           link.style.pointerEvents = 'auto'; 
 
-          link.style.background = 'rgba(0,0,255,0.1)'; // debug visivo 
+          link.style.background = 'rgba(0,0,255,0.1)'; // debug visivo, togli se vuoi 
 
  
 
