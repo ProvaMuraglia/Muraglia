@@ -6,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer con link interni solo</title> 
+  <title>PDF Viewer con link interni solo - click singolo pulito</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -78,6 +78,16 @@
 
     } 
 
+    /* Opzionale: per vedere i link durante il debug 
+
+    .link-layer a { 
+
+      border: 1px solid red; 
+
+    } 
+
+    */ 
+
   </style> 
 
 </head> 
@@ -103,6 +113,10 @@
   const url = '../web/compressed.tracemonkey-pldi-09.pdf'; 
 
   const container = document.getElementById('pdf-container'); 
+
+ 
+
+  let currentPageShown = null; 
 
  
 
@@ -146,6 +160,8 @@
 
           wrapper.scrollIntoView({ behavior: 'smooth' }); 
 
+          currentPageShown = pageNum; 
+
         } 
 
       } 
@@ -158,7 +174,17 @@
 
       const m = location.hash.match(/#page=(\d+)/); 
 
-      if (m) scrollToPage(parseInt(m[1], 10)); 
+      if (m) { 
+
+        const pageNum = parseInt(m[1], 10); 
+
+        if (pageNum !== currentPageShown) { 
+
+          scrollToPage(pageNum); 
+
+        } 
+
+      } 
 
     }); 
 
@@ -234,8 +260,6 @@
 
       linkLayer.className = 'link-layer'; 
 
-      // Usa le dimensioni visive del canvas, non la dimensione interna 
-
       linkLayer.style.width = canvas.clientWidth + 'px'; 
 
       linkLayer.style.height = canvas.clientHeight + 'px'; 
@@ -245,8 +269,6 @@
       pageWrapper.appendChild(linkLayer); 
 
  
-
-      // rapporto di scala tra dimensione canvas e dimensione visualizzata 
 
       const scaleX = canvas.clientWidth / canvas.width; 
 
@@ -262,15 +284,11 @@
 
  
 
-          // Calcola i due angoli trasformati 
-
           const [x1, y1] = applyTransform([rect[0], rect[1]], viewport.transform); 
 
           const [x2, y2] = applyTransform([rect[2], rect[3]], viewport.transform); 
 
  
-
-          // Calcola posizione e dimensioni con scaling per il ridimensionamento CSS 
 
           const left = Math.min(x1, x2) * scaleX; 
 
@@ -310,7 +328,9 @@
 
             const targetPageNum = pageIndex + 1; 
 
-            link.href = `#page=${targetPageNum}`; 
+ 
+
+            // IMPORTANTE: non uso href, uso solo click + history.replaceState 
 
             link.addEventListener('click', (e) => { 
 
