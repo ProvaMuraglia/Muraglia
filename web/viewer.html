@@ -111,6 +111,7 @@
       const scaleY = canvas.clientHeight / canvas.height;
 
       annotations.forEach(async (annotation) => {
+        console.log('Annotation:', annotation);
         if (annotation.subtype === 'Link' && annotation.dest) {
 
           // Conversione corretta della rectangle
