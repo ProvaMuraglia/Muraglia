@@ -6,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer con link interni e FitR corretti</title> 
+  <title>PDF Viewer con Text Layer + Link precisi</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -54,27 +54,45 @@
 
     } 
 
-    .link-layer { 
+    .text-layer { 
 
       position: absolute; 
 
       top: 0; left: 0; 
 
-      pointer-events: none; 
+      color: transparent; 
 
-      z-index: 10; 
+      transform-origin: 0 0; 
+
+      line-height: 1; 
+
+      z-index: 20; 
+
+      pointer-events: none; 
 
     } 
 
-    .link-layer a { 
+    .text-layer span { 
 
       position: absolute; 
 
-      display: block; 
+      white-space: pre; 
+
+      transform-origin: 0 0; 
 
       pointer-events: auto; 
 
-      background: rgba(255, 0, 0, 0.05); /* per debug, puoi mettere 0.0 se non vuoi vedere */ 
+      color: black; /* Se vuoi vedere il testo vero, se no metti transparent */ 
+
+    } 
+
+    .text-layer span.link { 
+
+      text-decoration: underline; 
+
+      color: blue; 
+
+      cursor: pointer; 
 
     } 
 
@@ -100,7 +118,7 @@
 
  
 
-  const url = '../web/compressed.tracemonkey-pldi-09.pdf'; 
+  const url = '../docs/file.pdf'; 
 
   const container = document.getElementById('pdf-container'); 
 
@@ -218,67 +236,69 @@
 
  
 
-      const annotations = await page.getAnnotations(); 
+      // TEXT LAYER 
+
+      const textContent = await page.getTextContent(); 
+
+      const textLayerDiv = document.createElement('div'); 
+
+      textLayerDiv.className = 'text-layer'; 
+
+      textLayerDiv.style.width = canvas.width + 'px'; 
+
+      textLayerDiv.style.height = canvas.height + 'px'; 
+
+      pageWrapper.appendChild(textLayerDiv); 
 
  
 
-      const linkLayer = document.createElement('div'); 
+      textContent.items.forEach(async (textItem) => { 
 
-      linkLayer.className = 'link-layer'; 
+        const tx = pdfjsLib.Util.transform( 
 
-      linkLayer.style.width = canvas.width + 'px'; 
+          viewport.transform, 
 
-      linkLayer.style.height = canvas.height + 'px'; 
+          textItem.transform 
 
- 
-
-      pageWrapper.appendChild(linkLayer); 
+        ); 
 
  
 
-      annotations.forEach(async (annotation) => { 
-
-        if (annotation.subtype === 'Link' && annotation.dest) { 
-
-          const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
+        const style = textContent.styles[textItem.fontName]; 
 
  
 
-          // ✅ Usa la funzione corretta per convertire coordinate PDF → viewport 
+        const span = document.createElement('span'); 
 
-          const [x1, y1] = viewport.convertToViewportPoint(rect[0], rect[1]); 
-
-          const [x2, y2] = viewport.convertToViewportPoint(rect[2], rect[3]); 
+        span.textContent = textItem.str; 
 
  
 
-          const left = Math.min(x1, x2); 
+        const fontHeight = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]); 
 
-          const top = Math.min(y1, y2); 
-
-          const width = Math.abs(x2 - x1); 
-
-          const height = Math.abs(y2 - y1); 
+        span.style.fontSize = fontHeight + 'px'; 
 
  
 
-          console.log('Link annotation:', annotation.dest); 
+        const scaleX = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]); 
 
  
 
-          const link = document.createElement('a'); 
+        span.style.transform = `translate(${tx[4]}px, ${tx[5]}px) scaleX(${scaleX})`; 
 
-          link.style.left = `${left}px`; 
-
-          link.style.top = `${top}px`; 
-
-          link.style.width = `${width}px`; 
-
-          link.style.height = `${height}px`; 
+        span.style.transformOrigin = 'left bottom'; 
 
  
 
-          const dest = await resolveDestination(annotation.dest); 
+        // LINK interno 
+
+        if (textItem.hasOwnProperty('annotation') && textItem.annotation.dest) { 
+
+          span.classList.add('link'); 
+
+ 
+
+          const dest = await resolveDestination(textItem.annotation.dest); 
 
           if (dest && dest[0]) { 
 
@@ -296,27 +316,19 @@
 
             if (dest[1]?.name === 'FitR') { 
 
-              // Calcola offsetY per FitR 
-
               const targetX = dest[2]; 
 
-              const targetY = dest[5]; // Y bottom in PDF space 
+              const targetY = dest[5]; 
 
  
 
               const targetViewport = (await pdf.getPage(targetPageNum)).getViewport({ scale: 1.5 }); 
 
- 
-
               const [, , , scaleY, , offsetYInViewport] = targetViewport.transform; 
-
- 
 
               const canvasHeight = targetViewport.height; 
 
               const viewportY = canvasHeight - targetY * scaleY; 
-
- 
 
               offsetY = viewportY; 
 
@@ -324,9 +336,7 @@
 
  
 
-            link.href = `#page=${targetPageNum}`; 
-
-            link.addEventListener('click', (e) => { 
+            span.addEventListener('click', (e) => { 
 
               e.preventDefault(); 
 
@@ -338,11 +348,11 @@
 
           } 
 
+        } 
+
  
 
-          linkLayer.appendChild(link); 
-
-        } 
+        textLayerDiv.appendChild(span); 
 
       }); 
 
