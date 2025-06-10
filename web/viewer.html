@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>PDF Viewer con link interni - Mobile Friendly</title>
+  <title>PDF Viewer con link interni - Mobile Friendly (Minimal)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body {
@@ -43,9 +43,7 @@
       pointer-events: auto;
       background: rgba(255, 255, 255, 0);
       touch-action: manipulation;
-      min-width: 20px;
-      min-height: 20px;
-      /* per debugging puoi attivare questo: */
+      /* Debug, se vuoi vedere i rettangoli: */
       /* border: 1px dashed red; */
     }
   </style>
@@ -152,11 +150,6 @@
           linkDiv.style.pointerEvents = 'auto';
           linkDiv.style.background = 'rgba(255, 255, 255, 0)';
           linkDiv.style.touchAction = 'manipulation';
-          linkDiv.setAttribute('role', 'button');
-          linkDiv.setAttribute('aria-label', 'Vai alla pagina');
-
-          linkDiv.style.minWidth = '20px';
-          linkDiv.style.minHeight = '20px';
 
           const dest = await resolveDestination(annotation.dest);
           if (dest && dest[0]) {
@@ -166,7 +159,7 @@
 
             linkDiv.addEventListener('click', (e) => {
               e.preventDefault();
-              e.stopPropagation(); // importantissimo su mobile!
+              e.stopPropagation();
               scrollToPage(targetPageNum);
               history.replaceState(null, '', `#page=${targetPageNum}`);
             });
