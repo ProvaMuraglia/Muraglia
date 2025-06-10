@@ -95,6 +95,8 @@
       const scaleY = canvas.clientHeight / canvas.height;
 
       annotations.forEach(async (ann) => {
+        const ciao = await resolveDestination(ann.dest);
+        console.log(ciao)
         if (ann.subtype === 'Link' && ann.dest) {
           const dest = await resolveDestination(ann.dest);
           if (dest?.[0]?.num != null) {
