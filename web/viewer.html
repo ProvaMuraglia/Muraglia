@@ -6,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer con link interni solo - click singolo pulito</title> 
+  <title>PDF Viewer con link interni - Mobile fix</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -76,9 +76,11 @@
 
       background: transparent; 
 
+      touch-action: manipulation; /* importantissimo per mobile */ 
+
     } 
 
-    /* Opzionale: per vedere i link durante il debug 
+    /* Opzionale per debug: 
 
     .link-layer a { 
 
@@ -316,6 +318,18 @@
 
           link.style.background = 'transparent'; 
 
+          link.style.touchAction = 'manipulation'; // fix mobile! 
+
+ 
+
+          link.href = '#'; 
+
+ 
+
+          // Aggiungo un <span> vuoto per farlo "cliccabile" su mobile 
+
+          link.innerHTML = '<span style="display:block;width:100%;height:100%;">&nbsp;</span>'; 
+
  
 
           const dest = await resolveDestination(annotation.dest); 
@@ -329,8 +343,6 @@
             const targetPageNum = pageIndex + 1; 
 
  
-
-            // IMPORTANTE: non uso href, uso solo click + history.replaceState 
 
             link.addEventListener('click', (e) => { 
 
