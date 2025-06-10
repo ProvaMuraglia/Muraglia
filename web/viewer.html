@@ -74,7 +74,7 @@
 
       pointer-events: auto; 
 
-      background: rgba(0, 0, 255, 0.1); /* debug → puoi rimuovere */ 
+      background: rgba(0, 0, 255, 0.1); /* debug, togliere se vuoi */ 
 
       border: 1px dashed rgba(0,0,255,0.3); 
 
@@ -138,7 +138,7 @@
 
  
 
-    async function scrollToPage(pageNum) { 
+    function scrollToPage(pageNum) { 
 
       if (pageNum >= 1 && pageNum <= pdf.numPages) { 
 
@@ -212,9 +212,9 @@
 
  
 
-      // LINK LAYER 
-
       const annotations = await page.getAnnotations(); 
+
+ 
 
       const linkLayer = document.createElement('div'); 
 
@@ -224,17 +224,15 @@
 
       linkLayer.style.height = canvas.height + 'px'; 
 
+ 
+
       pageWrapper.appendChild(linkLayer); 
 
  
 
       annotations.forEach(async (annotation) => { 
 
-        console.log(annotation); // per vedere cosa contiene 
-
- 
-
-        // dest o action 
+        // Prendi dest o action se presenti 
 
         let destToResolve = null; 
 
@@ -256,7 +254,7 @@
 
  
 
-          // Trasforma i due angoli 
+          // Applica trasformazione ai due angoli del rettangolo 
 
           const [x1, y1] = pdfjsLib.Util.applyTransform([rect[0], rect[1]], viewport.transform); 
 
@@ -264,21 +262,21 @@
 
  
 
-          const x = x1; 
+          const left = Math.min(x1, x2); 
 
-          const y = y1; 
+          const top = Math.min(y1, y2); 
 
-          const width = x2 - x1; 
+          const width = Math.abs(x2 - x1); 
 
-          const height = y2 - y1; 
+          const height = Math.abs(y2 - y1); 
 
  
 
           const link = document.createElement('a'); 
 
-          link.style.left = `${x}px`; 
+          link.style.left = `${left}px`; 
 
-          link.style.top = `${y}px`; 
+          link.style.top = `${top}px`; 
 
           link.style.width = `${width}px`; 
 
@@ -288,7 +286,7 @@
 
           link.style.pointerEvents = 'auto'; 
 
-          link.style.background = 'rgba(0,0,255,0.1)'; // debug 
+          link.style.background = 'rgba(0,0,255,0.1)'; // debug visivo 
 
  
 
