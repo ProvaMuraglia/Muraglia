@@ -1,5 +1,3 @@
- 
-
 <!DOCTYPE html> 
 
 <html lang="it"> 
@@ -8,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer con link interni con FitR</title> 
+  <title>PDF Viewer con link interni e FitR corretti</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -76,7 +74,7 @@
 
       pointer-events: auto; 
 
-      background: rgba(255, 0, 0, 0.05); /* per debug, poi puoi mettere 0.0 */ 
+      background: rgba(255, 0, 0, 0.05); /* per debug, puoi mettere 0.0 se non vuoi vedere */ 
 
     } 
 
@@ -244,17 +242,23 @@
 
           const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
 
-          const transform = viewport.transform; 
+ 
+
+          // ✅ Usa la funzione corretta per convertire coordinate PDF → viewport 
+
+          const [x1, y1] = viewport.convertToViewportPoint(rect[0], rect[1]); 
+
+          const [x2, y2] = viewport.convertToViewportPoint(rect[2], rect[3]); 
 
  
 
-          const x = transform[0] * rect[0] + transform[2] * rect[1] + transform[4]; 
+          const left = Math.min(x1, x2); 
 
-          const y = transform[1] * rect[1] + transform[3] * rect[1] + transform[5]; 
+          const top = Math.min(y1, y2); 
 
-          const width = (rect[2] - rect[0]) * transform[0]; 
+          const width = Math.abs(x2 - x1); 
 
-          const height = (rect[3] - rect[1]) * transform[3]; 
+          const height = Math.abs(y2 - y1); 
 
  
 
@@ -264,9 +268,9 @@
 
           const link = document.createElement('a'); 
 
-          link.style.left = `${x}px`; 
+          link.style.left = `${left}px`; 
 
-          link.style.top = `${y - height}px`; 
+          link.style.top = `${top}px`; 
 
           link.style.width = `${width}px`; 
 
@@ -292,11 +296,11 @@
 
             if (dest[1]?.name === 'FitR') { 
 
-              // Calcolo l'offset verticale relativo alla pagina 
+              // Calcola offsetY per FitR 
 
               const targetX = dest[2]; 
 
-              const targetY = dest[5]; // Y bottom in PDF space (inverted!) 
+              const targetY = dest[5]; // Y bottom in PDF space 
 
  
 
@@ -304,21 +308,15 @@
 
  
 
-              // Converti Y PDF space → Y DOM space 
-
               const [, , , scaleY, , offsetYInViewport] = targetViewport.transform; 
 
  
-
-              // In PDF space l'asse Y è invertito rispetto al DOM 
 
               const canvasHeight = targetViewport.height; 
 
               const viewportY = canvasHeight - targetY * scaleY; 
 
  
-
-              // Offset da applicare allo scroll 
 
               offsetY = viewportY; 
 
