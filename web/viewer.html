@@ -6,7 +6,7 @@
 
   <meta charset="utf-8" /> 
 
-  <title>PDF Viewer Ibrido (Text + Link funzionanti)</title> 
+  <title>PDF Viewer Ibrido (Text + Link corretti)</title> 
 
   <meta name="viewport" content="width=device-width, initial-scale=1" /> 
 
@@ -134,7 +134,7 @@
 
  
 
-  const url = '../web/compressed.tracemonkey-pldi-09.pdf '; 
+  const url = '../web/compressed.tracemonkey-pldi-09.pdf'; 
 
   const container = document.getElementById('pdf-container'); 
 
@@ -322,17 +322,21 @@
 
           const rect = pdfjsLib.Util.normalizeRect(annotation.rect); 
 
-          const transform = viewport.transform; 
+ 
+
+          // usa applyTransform per correggere il rect 
+
+          const transformedRect = pdfjsLib.Util.applyTransform(rect, viewport.transform); 
 
  
 
-          const x = transform[0] * rect[0] + transform[2] * rect[1] + transform[4]; 
+          const x = transformedRect[0]; 
 
-          const y = transform[1] * rect[1] + transform[3] * rect[1] + transform[5]; 
+          const y = transformedRect[1]; 
 
-          const width = (rect[2] - rect[0]) * transform[0]; 
+          const width = transformedRect[2] - transformedRect[0]; 
 
-          const height = (rect[3] - rect[1]) * transform[3]; 
+          const height = transformedRect[3] - transformedRect[1]; 
 
  
 
@@ -340,11 +344,17 @@
 
           link.style.left = `${x}px`; 
 
-          link.style.top = `${y - height}px`; 
+          link.style.top = `${y}px`; 
 
           link.style.width = `${width}px`; 
 
           link.style.height = `${height}px`; 
+
+ 
+
+          link.style.pointerEvents = 'auto'; 
+
+          link.style.background = 'rgba(0,0,255,0.1)'; // debug → puoi rimuovere poi 
 
  
 
