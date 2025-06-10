@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>PDF Viewer con link interni funzionanti</title>
+  <title>PDF Viewer con link interni - finale 2</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body {
@@ -20,25 +20,29 @@
       position: relative;
       margin-bottom: 20px;
       box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      touch-action: manipulation;
     }
     canvas {
       display: block;
       width: 100%;
       height: auto;
+      touch-action: none;
     }
     .link-layer {
       position: absolute;
       top: 0; left: 0;
-      pointer-events: none;
-      z-index: 10;
       width: 100%;
       height: 100%;
+      pointer-events: auto;
+      z-index: 10;
+      touch-action: manipulation;
     }
     .link-layer a {
       position: absolute;
       display: block;
       pointer-events: auto;
-      background: transparent;
+      background: rgba(255, 255, 255, 0);
+      touch-action: manipulation;
     }
   </style>
 </head>
@@ -64,6 +68,11 @@
       return dest;
     }
 
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      await renderPage(page);
+    }
+
     function scrollToPage(pageNum) {
       if (pageNum >= 1 && pageNum <= pdf.numPages) {
         const wrapper = container.children[pageNum - 1];
@@ -73,30 +82,11 @@
       }
     }
 
-    window.addEventListener('hashchange', () => {
-      const m = location.hash.match(/#page=(\d+)/);
-      if (m) scrollToPage(parseInt(m[1], 10));
-    });
-
-    const initialMatch = location.hash.match(/#page=(\d+)/);
-    if (initialMatch) {
-      setTimeout(() => {
-        scrollToPage(parseInt(initialMatch[1], 10));
-      }, 500);
-    }
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      await renderPage(page);
-    }
-
     async function renderPage(page) {
       const viewport = page.getViewport({ scale: 1.5 });
 
       const pageWrapper = document.createElement('div');
       pageWrapper.className = 'page-wrapper';
-      pageWrapper.style.width = viewport.width + 'px';
-      pageWrapper.style.height = viewport.height + 'px';
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -112,55 +102,65 @@
 
       const linkLayer = document.createElement('div');
       linkLayer.className = 'link-layer';
-      linkLayer.style.width = viewport.width + 'px';
-      linkLayer.style.height = viewport.height + 'px';
+      linkLayer.style.width = canvas.clientWidth + 'px';
+      linkLayer.style.height = canvas.clientHeight + 'px';
 
       pageWrapper.appendChild(linkLayer);
 
-      for (const annotation of annotations) {
+      const scaleX = canvas.clientWidth / canvas.width;
+      const scaleY = canvas.clientHeight / canvas.height;
+
+      annotations.forEach(async (annotation) => {
+        console.log('Annotation:', annotation);
         if (annotation.subtype === 'Link' && annotation.dest) {
+
+          // Conversione corretta della rectangle
+          const viewportRect = viewport.convertToViewportRectangle(annotation.rect);
+
+          const left = Math.min(viewportRect[0], viewportRect[2]) * scaleX;
+          const top = Math.min(viewportRect[1], viewportRect[3]) * scaleY;
+          const width = Math.abs(viewportRect[2] - viewportRect[0]) * scaleX;
+          const height = Math.abs(viewportRect[3] - viewportRect[1]) * scaleY;
+
+          const link = document.createElement('a');
+          link.style.left = `${left}px`;
+          link.style.top = `${top}px`;
+          link.style.width = `${width}px`;
+          link.style.height = `${height}px`;
+          link.style.pointerEvents = 'auto';
+          link.style.background = 'rgba(255, 255, 255, 0)';
+          link.style.touchAction = 'manipulation';
+          link.setAttribute('role', 'button');
+          link.setAttribute('aria-label', 'Vai alla pagina');
+          link.href = '#';
+
+          // compatibilità mobile
+          link.innerHTML = '<span style="display:block;width:100%;height:100%;">&nbsp;</span>';
+
+          // RISOLVIAMO BENE IL DEST
           const dest = await resolveDestination(annotation.dest);
-          if (dest && dest[0]) {
-            const pageRef = dest[0];
-            const pageIndex = await pdf.getPageIndex(pageRef);
-            const targetPageNum = pageIndex + 1;
+          if (dest && dest[0] && typeof dest[0] === 'object' && 'num' in dest[0]) {
+            try {
+              const pageRef = dest[0];
+              const pageIndex = await pdf.getPageIndex(pageRef);
+              const targetPageNum = pageIndex + 1;
 
-            const rect = annotation.rect;
-            if (Array.isArray(rect) && rect.length === 4) {
-              const [x1, y1, x2, y2] = rect;
-
-              // Trasforma i due angoli usando viewport.transform
-              const p1 = pdfjsLib.Util.applyTransform([x1, y1], viewport.transform);
-              const p2 = pdfjsLib.Util.applyTransform([x2, y2], viewport.transform);
-
-              if (p1 && p2) {
-                const left = Math.min(p1[0], p2[0]);
-                const top = Math.min(p1[1], p2[1]);
-                const width = Math.abs(p2[0] - p1[0]);
-                const height = Math.abs(p2[1] - p1[1]);
-
-                const link = document.createElement('a');
-                link.href = `#page=${targetPageNum}`;
-                link.style.left = `${left}px`;
-                link.style.top = `${top}px`;
-                link.style.width = `${width}px`;
-                link.style.height = `${height}px`;
-                link.style.position = 'absolute';
-                link.style.pointerEvents = 'auto';
-                link.style.background = 'transparent';
-
+              if (targetPageNum >= 1 && targetPageNum <= pdf.numPages) {
                 link.addEventListener('click', (e) => {
                   e.preventDefault();
                   scrollToPage(targetPageNum);
-                  history.replaceState(null, '', `#page=${targetPageNum}`);
+                  // NON aggiorniamo l'URL (pulito)
                 });
 
                 linkLayer.appendChild(link);
               }
+            } catch (err) {
+              console.warn('Errore nel getPageIndex:', err);
+              // Se non riesce a risolvere la pagina, NON aggiungiamo il link
             }
           }
         }
-      }
+      });
     }
   });
 </script>
