@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <title>Menu</title>
+  <title>PDF Viewer Mobile</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <style>
     html, body {
@@ -78,10 +78,10 @@
 </head>
 <body>
 
-<!-- Popup di benvenuto -->
-<div id="welcome-popup" onclick="closeWelcomePopup()">
+<!-- Popup benvenuto -->
+<div id="welcome-popup" onclick="closeWelcomePopup()" style="display:none;">
   <div class="popup-box">
-    👋 Benvenuto! Scorri il menu e tocca i pulsanti per navigare.
+    👋 Benvenuto! Scorri il documento e tocca i pulsanti per navigare.
   </div>
 </div>
 
@@ -93,15 +93,14 @@
 
   const url = '../web/compressed.tracemonkey-pldi-09.pdf';
   const container = document.getElementById('pdf-container');
+  const welcomePopup = document.getElementById('welcome-popup');
 
-  // Chiude popup dopo 3 secondi o al tocco
   window.closeWelcomePopup = () => {
-    const popup = document.getElementById('welcome-popup');
-    if (popup) popup.style.display = 'none';
+    welcomePopup.style.display = 'none';
   };
-  setTimeout(closeWelcomePopup, 3000);
 
   pdfjsLib.getDocument(url).promise.then(async (pdf) => {
+
     function scrollToPage(pageNum) {
       const wrapper = container.children[pageNum - 1];
       if (wrapper) wrapper.scrollIntoView({ behavior: 'smooth' });
@@ -128,13 +127,21 @@
 
       await page.render({ canvasContext: ctx, viewport }).promise;
 
+      // 👋 Mostra benvenuto appena la prima pagina è renderizzata
+      if (pageNum === 1) {
+        welcomePopup.style.display = 'flex';
+        setTimeout(() => {
+          welcomePopup.style.display = 'none';
+        }, 3000);
+      }
+
       const annotations = await page.getAnnotations();
       const linkLayer = document.createElement('div');
       linkLayer.className = 'link-layer';
       wrapper.appendChild(linkLayer);
 
-      const scaleX = viewport.scale;
-      const scaleY = viewport.scale;
+      const scaleX = canvas.clientWidth / canvas.width;
+      const scaleY = canvas.clientHeight / canvas.height;
 
       annotations.forEach(async (ann) => {
         if (ann.subtype === 'Link' && ann.dest) {
@@ -149,8 +156,6 @@
               const top = Math.min(rect[1], rect[3]) * scaleY;
               const width = Math.abs(rect[2] - rect[0]) * scaleX;
               const height = Math.abs(rect[3] - rect[1]) * scaleY;
-
-              if (width < 8 || height < 8) return;
 
               const a = document.createElement('a');
               a.style.left = `${left}px`;
