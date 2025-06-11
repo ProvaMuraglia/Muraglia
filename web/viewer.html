@@ -15,7 +15,6 @@
 
     #pdf-container {
       width: 100vw;
-      display: none; /* 👈 inizialmente nascosto */
     }
 
     .page-wrapper {
@@ -60,11 +59,12 @@
   const container = document.getElementById('pdf-container');
 
   pdfjsLib.getDocument(url).promise.then(async (pdf) => {
+
     function scrollToPage(pageNum) {
       const wrapper = container.children[pageNum - 1];
       if (wrapper) wrapper.scrollIntoView({ behavior: 'smooth' });
     }
-
+    
     async function resolveDestination(dest) {
       return (typeof dest === 'string') ? await pdf.getDestination(dest) : dest;
     }
@@ -85,11 +85,6 @@
       container.appendChild(wrapper);
 
       await page.render({ canvasContext: ctx, viewport }).promise;
-
-      // 👇 Mostra il contenitore dopo che la pagina 6 è renderizzata
-      if (pageNum === 6) {
-        container.style.display = 'block';
-      }
 
       const annotations = await page.getAnnotations();
       const linkLayer = document.createElement('div');
