@@ -45,9 +45,45 @@
       background: rgba(255, 255, 255, 0);
       touch-action: manipulation;
     }
+
+    /* Popup benvenuto */
+    #welcome-popup {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    #welcome-popup .popup-box {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 15px;
+      font-size: 1.2em;
+      text-align: center;
+      max-width: 90%;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
   </style>
 </head>
 <body>
+
+<!-- Popup di benvenuto -->
+<div id="welcome-popup" onclick="closeWelcomePopup()">
+  <div class="popup-box">
+    👋 Benvenuto! Scorri il menu e tocca i pulsanti per navigare.
+  </div>
+</div>
 
 <div id="pdf-container"></div>
 
@@ -58,13 +94,19 @@
   const url = '../web/compressed.tracemonkey-pldi-09.pdf';
   const container = document.getElementById('pdf-container');
 
-  pdfjsLib.getDocument(url).promise.then(async (pdf) => {
+  // Chiude popup dopo 3 secondi o al tocco
+  window.closeWelcomePopup = () => {
+    const popup = document.getElementById('welcome-popup');
+    if (popup) popup.style.display = 'none';
+  };
+  setTimeout(closeWelcomePopup, 3000);
 
+  pdfjsLib.getDocument(url).promise.then(async (pdf) => {
     function scrollToPage(pageNum) {
       const wrapper = container.children[pageNum - 1];
       if (wrapper) wrapper.scrollIntoView({ behavior: 'smooth' });
     }
-    
+
     async function resolveDestination(dest) {
       return (typeof dest === 'string') ? await pdf.getDestination(dest) : dest;
     }
@@ -91,8 +133,8 @@
       linkLayer.className = 'link-layer';
       wrapper.appendChild(linkLayer);
 
-      const scaleX = canvas.clientWidth / canvas.width;
-      const scaleY = canvas.clientHeight / canvas.height;
+      const scaleX = viewport.scale;
+      const scaleY = viewport.scale;
 
       annotations.forEach(async (ann) => {
         if (ann.subtype === 'Link' && ann.dest) {
@@ -107,6 +149,8 @@
               const top = Math.min(rect[1], rect[3]) * scaleY;
               const width = Math.abs(rect[2] - rect[0]) * scaleX;
               const height = Math.abs(rect[3] - rect[1]) * scaleY;
+
+              if (width < 8 || height < 8) return;
 
               const a = document.createElement('a');
               a.style.left = `${left}px`;
